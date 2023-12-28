@@ -19,7 +19,7 @@ use uucore::{
         BSD, CRC, SYSV,
     },
 };
-
+//TODO: ADD --raw option
 const USAGE: &str = help_usage!("cksum.md");
 const ABOUT: &str = help_about!("cksum.md");
 const AFTER_HELP: &str = help_section!("after help", "cksum.md");
