@@ -19,7 +19,6 @@ use uucore::{
         BSD, CRC, SYSV,
     },
 };
-//TODO: ADD --raw option
 const USAGE: &str = help_usage!("cksum.md");
 const ABOUT: &str = help_about!("cksum.md");
 const AFTER_HELP: &str = help_section!("after help", "cksum.md");
@@ -98,10 +97,16 @@ fn detect_algo(program: &str) -> (&'static str, Box<dyn Digest + 'static>, usize
 }
 
 struct Options {
+    /// `-a`, `--algorithm`
     algo_name: &'static str,
+    /// 
     digest: Box<dyn Digest + 'static>,
+    /// `-l`, `--length`
     output_bits: usize,
+    // `--untagged`
     untagged: bool,
+    // `--raw`
+    raw: bool,
 }
 
 /// Calculate checksum
@@ -114,7 +119,10 @@ struct Options {
 fn cksum<'a, I>(mut options: Options, files: I) -> UResult<()>
 where
     I: Iterator<Item = &'a OsStr>,
-{
+{   if options.raw == true {
+    println!("RAW ARGUMENT USED!");
+    return Ok(());
+}
     for filename in files {
         let filename = Path::new(filename);
         let stdin_buf;
@@ -217,6 +225,7 @@ mod options {
     pub const ALGORITHM: &str = "algorithm";
     pub const FILE: &str = "file";
     pub const UNTAGGED: &str = "untagged";
+    pub const RAW: &str = "raw";
 }
 
 #[uucore::main]
@@ -229,13 +238,13 @@ pub fn uumain(args: impl uucore::Args) -> UResult<()> {
         Some(v) => v,
         None => ALGORITHM_OPTIONS_CRC,
     };
-
     let (name, algo, bits) = detect_algo(algo_name);
     let opts = Options {
         algo_name: name,
         digest: algo,
         output_bits: bits,
         untagged: matches.get_flag(options::UNTAGGED),
+        raw: matches.get_flag(options::RAW), 
     };
 
     match matches.get_many::<String>(options::FILE) {
@@ -283,6 +292,12 @@ pub fn uu_app() -> Command {
                 .long(options::UNTAGGED)
                 .help("create a reversed style checksum, without digest type")
                 .action(ArgAction::SetTrue),
+        )
+        .arg(
+            Arg::new(options::RAW)
+            .long(options::RAW)
+            .help("emit a raw binary digest, not hexadecimal")
+            .action(ArgAction::SetTrue),
         )
         .after_help(AFTER_HELP)
 }
