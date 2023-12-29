@@ -8,7 +8,7 @@ use clap::{crate_version, Arg, ArgAction, Command};
 use hex::encode;
 use std::ffi::OsStr;
 use std::fs::File;
-use std::io::{self, stdin, BufReader, Read};
+use std::io::{self, stdin, BufReader, Read, Write};
 use std::iter;
 use std::path::Path;
 use uucore::{
@@ -119,10 +119,7 @@ struct Options {
 fn cksum<'a, I>(mut options: Options, files: I) -> UResult<()>
 where
     I: Iterator<Item = &'a OsStr>,
-{   if options.raw == true {
-    println!("RAW ARGUMENT USED!");
-    return Ok(());
-}
+{   
     for filename in files {
         let filename = Path::new(filename);
         let stdin_buf;
@@ -140,6 +137,15 @@ where
         });
         let (sum, sz) = digest_read(&mut options.digest, &mut file, options.output_bits)
             .map_err_context(|| "failed to read input".to_string())?;
+
+        if options.raw {
+            let sum2 = sum.parse::<u32>().unwrap();
+            let bytes_str = sum2.to_be_bytes();
+            if let Err(e) = io::stdout().write_all(&bytes_str) {
+                eprintln!("Error writing to stdout: {}", e);
+            }
+            return Ok(());
+        }
 
         // The BSD checksum output is 5 digit integer
         let bsd_width = 5;
