@@ -6,11 +6,14 @@
 // spell-checker:ignore (ToDO) fname, algo
 use clap::{crate_version, Arg, ArgAction, Command};
 use hex::encode;
+use uucore::error::UError;
 use std::ffi::OsStr;
 use std::fs::File;
-use std::io::{self, stdin, BufReader, Read, Write};
+use std::io::{self, stdin, stdout, BufReader, Read, Write};
 use std::iter;
 use std::path::Path;
+use std::error::Error;
+use std::fmt::Display;
 use uucore::{
     error::{FromIo, UResult},
     format_usage, help_about, help_section, help_usage,
@@ -34,6 +37,32 @@ const ALGORITHM_OPTIONS_SHA384: &str = "sha384";
 const ALGORITHM_OPTIONS_SHA512: &str = "sha512";
 const ALGORITHM_OPTIONS_BLAKE2B: &str = "blake2b";
 const ALGORITHM_OPTIONS_SM3: &str = "sm3";
+
+#[derive(Debug)]
+enum CkSumError {
+    RawMultipleFiles,
+}
+
+impl UError for CkSumError {
+    fn code(&self) -> i32 {
+        match self {
+            Self::RawMultipleFiles => 1,
+        }
+    }
+}
+
+impl Error for CkSumError {
+}
+
+impl Display for CkSumError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::RawMultipleFiles => {
+                write!(f, "the --raw option is not supported with multiple files")
+            }
+        }
+    }
+}
 
 fn detect_algo(program: &str) -> (&'static str, Box<dyn Digest + 'static>, usize) {
     match program {
@@ -99,7 +128,7 @@ fn detect_algo(program: &str) -> (&'static str, Box<dyn Digest + 'static>, usize
 struct Options {
     /// `-a`, `--algorithm`
     algo_name: &'static str,
-    /// 
+    /// the algorithm used
     digest: Box<dyn Digest + 'static>,
     /// `-l`, `--length`
     output_bits: usize,
@@ -120,7 +149,11 @@ fn cksum<'a, I>(mut options: Options, files: I) -> UResult<()>
 where
     I: Iterator<Item = &'a OsStr>,
 {   
-    for filename in files {
+    let files_vec:Vec<_> = files.collect();
+    if options.raw && files_vec.len() > 1 {
+        return Err(Box::new(CkSumError::RawMultipleFiles));
+    }
+    for filename in files_vec {
         let filename = Path::new(filename);
         let stdin_buf;
         let file_buf;
@@ -141,9 +174,7 @@ where
         if options.raw {
             let sum2 = sum.parse::<u32>().unwrap();
             let bytes_str = sum2.to_be_bytes();
-            if let Err(e) = io::stdout().write_all(&bytes_str) {
-                eprintln!("Error writing to stdout: {}", e);
-            }
+            stdout().write_all(&bytes_str)?;
             return Ok(());
         }
 
