@@ -10,8 +10,8 @@ use std::io::stdout;
 use std::ops::ControlFlow;
 
 use clap::{crate_version, Arg, ArgAction, Command};
-use uucore::error::{UResult, UUsageError};
-use uucore::format::{parse_spec_and_escape, FormatArgument};
+use uucore::error::{UResult, USimpleError, UUsageError};
+use uucore::format::{parse_spec_and_escape, ArgumentIter, FormatArgument};
 use uucore::{format_usage, help_about, help_section, help_usage};
 
 const VERSION: &str = "version";
@@ -39,11 +39,23 @@ pub fn uumain(args: impl uucore::Args) -> UResult<()> {
     };
 
     let mut args = values.iter().peekable();
+    let first_arg = args.peek().cloned();
     for item in parse_spec_and_escape(format_string.as_ref()) {
         match item?.write(stdout(), &mut args)? {
             ControlFlow::Continue(()) => {}
             ControlFlow::Break(()) => return Ok(()),
         };
+    }
+
+    if let Some(arg) = args.peek() {
+        // Check if no arguments were used while parsing the format.
+        if Some(arg) == first_arg.as_ref() {
+            let warning_message = format!(
+                "warning: ignoring excess arguments, starting with '{}'",
+                args.get_str()
+            );
+            return Err(USimpleError::new(0, warning_message.as_str()));
+        }
     }
 
     while args.peek().is_some() {
@@ -54,6 +66,7 @@ pub fn uumain(args: impl uucore::Args) -> UResult<()> {
             };
         }
     }
+
     Ok(())
 }
 
