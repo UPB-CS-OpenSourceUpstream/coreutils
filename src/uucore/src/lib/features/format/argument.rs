@@ -14,7 +14,7 @@ use crate::{error::set_exit_code, show_warning};
 ///
 /// The [`FormatArgument::Unparsed`] variant contains a string that can be
 /// parsed into other types. This is used by the `printf` utility.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum FormatArgument {
     Char(char),
     String(String),
