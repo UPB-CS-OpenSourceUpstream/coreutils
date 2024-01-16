@@ -73,6 +73,15 @@ fn escaped_unrecognized() {
 }
 
 #[test]
+fn ignore_excess_arguments() {
+    new_ucmd!()
+        .args(&["a", "b"])
+        .succeeds()
+        .stdout_is("a")
+        .stderr_is("printf: warning: ignoring excess arguments, starting with 'b'\n");
+}
+
+#[test]
 fn sub_string() {
     new_ucmd!()
         .args(&["hello %s", "world"])
