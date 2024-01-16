@@ -6,10 +6,11 @@
 // spell-checker:ignore (change!) each's
 // spell-checker:ignore (ToDO) LONGHELP FORMATSTRING templating parameterizing formatstr
 
-use std::io::stdout;
+use std::io::{stdout, Write};
 use std::ops::ControlFlow;
 
 use clap::{crate_version, Arg, ArgAction, Command};
+use uucore::display::Quotable;
 use uucore::error::{UResult, USimpleError, UUsageError};
 use uucore::format::{parse_spec_and_escape, ArgumentIter, FormatArgument};
 use uucore::{format_usage, help_about, help_section, help_usage};
@@ -50,9 +51,10 @@ pub fn uumain(args: impl uucore::Args) -> UResult<()> {
     if let Some(arg) = args.peek() {
         // Check if no arguments were used while parsing the format.
         if Some(arg) == first_arg.as_ref() {
+            stdout().flush()?;
             let warning_message = format!(
-                "warning: ignoring excess arguments, starting with '{}'",
-                args.get_str()
+                "warning: ignoring excess arguments, starting with {}",
+                args.get_str().quote()
             );
             return Err(USimpleError::new(0, warning_message.as_str()));
         }
